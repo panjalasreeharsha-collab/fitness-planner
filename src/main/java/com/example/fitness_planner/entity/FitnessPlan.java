@@ -55,6 +55,9 @@ public class FitnessPlan {
     @Column(name = "workout_split_type", nullable = false)
     private String workoutSplitType;
 
+    @Column
+    private String profession;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     @CreationTimestamp
     private LocalDateTime createdAt;

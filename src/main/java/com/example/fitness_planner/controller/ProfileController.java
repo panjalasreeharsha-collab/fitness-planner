@@ -1,6 +1,7 @@
 package com.example.fitness_planner.controller;
 
 import com.example.fitness_planner.dto.ProfileBiometricRequest;
+import com.example.fitness_planner.dto.ProfileResponse;
 import com.example.fitness_planner.dto.WeightLogResponse;
 import com.example.fitness_planner.entity.User;
 import com.example.fitness_planner.service.FitnessPlanService;
@@ -18,6 +19,11 @@ import java.util.List;
 public class ProfileController {
 
     private final FitnessPlanService fitnessPlanService;
+
+    @GetMapping("/profile/biometrics")
+    public ResponseEntity<ProfileResponse> getProfile(@AuthenticationPrincipal User user) {
+        return ResponseEntity.ok(fitnessPlanService.getProfile(user));
+    }
 
     @PostMapping("/profile/biometrics")
     public ResponseEntity<WeightLogResponse> saveBiometrics(

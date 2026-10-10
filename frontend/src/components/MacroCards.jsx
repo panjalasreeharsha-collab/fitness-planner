@@ -1,10 +1,3 @@
-const cards = [
-  { label: 'Calories', value: '2,525 kcal', accent: 'bg-emerald-500' },
-  { label: 'Protein', value: '164 g', accent: 'bg-cyan-500' },
-  { label: 'Carbs', value: '295 g', accent: 'bg-violet-500' },
-  { label: 'Fats', value: '69 g', accent: 'bg-amber-500' },
-];
-
 export default function MacroCards({ plan }) {
   const values = [
     { label: 'Calories', value: `${plan.targetCalories.toLocaleString()} kcal`, accent: 'bg-emerald-500' },

@@ -52,6 +52,11 @@ public class User implements UserDetails {
     @Column(nullable = false)
     private ActivityLevel activityLevel;
 
+    private String profession;
+
+    @Enumerated(EnumType.STRING)
+    private WorkoutSplitType preferredWorkoutSplit;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     @CreationTimestamp
     private LocalDateTime createdAt;

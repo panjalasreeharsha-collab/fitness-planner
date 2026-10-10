@@ -2,6 +2,7 @@ package com.example.fitness_planner.service;
 
 import com.example.fitness_planner.dto.FitnessPlanResponse;
 import com.example.fitness_planner.dto.ProfileBiometricRequest;
+import com.example.fitness_planner.dto.ProfileResponse;
 import com.example.fitness_planner.dto.WeightLogResponse;
 import com.example.fitness_planner.dto.WorkoutPlanResponse;
 import com.example.fitness_planner.entity.*;
@@ -26,11 +27,14 @@ public class FitnessPlanService {
     private final FitnessPlanRepository fitnessPlanRepository;
     private final WorkoutPlanRepository workoutPlanRepository;
 
+    @Transactional
     public WeightLogResponse saveBiometrics(User user, ProfileBiometricRequest request) {
         user.setAge(request.getAge());
         user.setGender(request.getGender());
         user.setHeightCm(request.getHeightCm());
         user.setActivityLevel(request.getActivityLevel());
+        user.setProfession(request.getProfession().trim());
+        user.setPreferredWorkoutSplit(request.getWorkoutSplitType());
         userRepository.save(user);
 
         WeightLog weightLog = WeightLog.builder()
@@ -62,8 +66,27 @@ public class FitnessPlanService {
                 .build();
     }
 
+    public ProfileResponse getProfile(User user) {
+        WeightLog latest = weightLogRepository.findTopByUserOrderByLoggedDateDesc(user).orElse(null);
+        return ProfileResponse.builder()
+                .age(user.getAge())
+                .gender(user.getGender())
+                .heightCm(user.getHeightCm())
+                .weightKg(latest == null ? null : latest.getWeightKg())
+                .neckCm(latest == null ? null : latest.getNeckCm())
+                .waistCm(latest == null ? null : latest.getWaistCm())
+                .hipCm(latest == null ? null : latest.getHipCm())
+                .activityLevel(user.getActivityLevel())
+                .profession(user.getProfession())
+                .workoutSplitType(user.getPreferredWorkoutSplit())
+                .build();
+    }
+
     @Transactional
     public FitnessPlanResponse generatePlan(User user, Goal goal, ActivityLevel activityLevel) {
+        if (user.getPreferredWorkoutSplit() == null || user.getProfession() == null || user.getProfession().isBlank()) {
+            throw new IllegalArgumentException("Please save your profession and workout split before generating a plan");
+        }
         user.setActivityLevel(activityLevel);
         userRepository.save(user);
 
@@ -92,12 +115,13 @@ public class FitnessPlanService {
                 .proteinGrams((int) Math.round(proteinGrams))
                 .carbsGrams((int) Math.round(carbsGrams))
                 .fatGrams((int) Math.round(fatGrams))
-                .workoutSplitType(resolveWorkoutSplit(goal))
+                .workoutSplitType(resolveWorkoutSplit(user.getPreferredWorkoutSplit()))
+                .profession(user.getProfession())
                 .build();
 
         FitnessPlan savedPlan = fitnessPlanRepository.save(plan);
 
-        List<WorkoutPlan> workoutPlans = buildWorkoutPlan(savedPlan, resolveWorkoutSplit(goal));
+        List<WorkoutPlan> workoutPlans = buildWorkoutPlan(savedPlan, user.getPreferredWorkoutSplit());
         workoutPlanRepository.saveAll(workoutPlans);
 
         return FitnessPlanResponse.builder()
@@ -110,6 +134,7 @@ public class FitnessPlanService {
                 .carbsGrams(savedPlan.getCarbsGrams())
                 .fatGrams(savedPlan.getFatGrams())
                 .workoutSplitType(savedPlan.getWorkoutSplitType())
+                .profession(savedPlan.getProfession())
                 .createdAt(savedPlan.getCreatedAt())
                 .workoutPlans(toWorkoutPlanResponses(workoutPlans))
                 .build();
@@ -131,6 +156,7 @@ public class FitnessPlanService {
                 .carbsGrams(latestPlan.getCarbsGrams())
                 .fatGrams(latestPlan.getFatGrams())
                 .workoutSplitType(latestPlan.getWorkoutSplitType())
+                .profession(latestPlan.getProfession())
                 .createdAt(latestPlan.getCreatedAt())
                 .workoutPlans(toWorkoutPlanResponses(workoutPlans))
                 .build();
@@ -192,23 +218,28 @@ public class FitnessPlanService {
         return Math.max(0.0, numerator - 450.0);
     }
 
-    private String resolveWorkoutSplit(Goal goal) {
-        return switch (goal) {
-            case CUT -> "4-Day Upper/Lower";
-            case LEAN_BULK -> "5-Day Push/Pull/Legs";
-            case BULK -> "6-Day PPL";
+    private String resolveWorkoutSplit(WorkoutSplitType splitType) {
+        return switch (splitType) {
+            case FULL_BODY_3_DAY -> "3-Day Full Body";
+            case UPPER_LOWER_4_DAY -> "4-Day Upper/Lower";
+            case PUSH_PULL_LEGS_5_DAY -> "5-Day Push/Pull/Legs";
+            case PUSH_PULL_LEGS_6_DAY -> "6-Day Push/Pull/Legs";
         };
     }
 
-    private List<WorkoutPlan> buildWorkoutPlan(FitnessPlan plan, String splitType) {
+    private List<WorkoutPlan> buildWorkoutPlan(FitnessPlan plan, WorkoutSplitType splitType) {
         List<WorkoutPlan> workoutPlans = new ArrayList<>();
 
-        if (splitType.equals("4-Day Upper/Lower")) {
+        if (splitType == WorkoutSplitType.FULL_BODY_3_DAY) {
+            workoutPlans.add(WorkoutPlan.builder().plan(plan).dayOfWeek("Monday").focusArea("Full Body A").exercises("Goblet Squat, Dumbbell Bench Press, Seated Cable Row, Romanian Deadlift, Plank").build());
+            workoutPlans.add(WorkoutPlan.builder().plan(plan).dayOfWeek("Wednesday").focusArea("Full Body B").exercises("Leg Press, Overhead Press, Lat Pulldown, Hip Thrust, Dead Bug").build());
+            workoutPlans.add(WorkoutPlan.builder().plan(plan).dayOfWeek("Friday").focusArea("Full Body C").exercises("Split Squat, Incline Dumbbell Press, Chest-Supported Row, Leg Curl, Farmer Carry").build());
+        } else if (splitType == WorkoutSplitType.UPPER_LOWER_4_DAY) {
             workoutPlans.add(WorkoutPlan.builder().plan(plan).dayOfWeek("Monday").focusArea("Upper").exercises("Bench Press, Incline DB Press, Lat Pulldown, Barbell Row, Shoulder Press, Cable Flyes, Pull-Ups").build());
             workoutPlans.add(WorkoutPlan.builder().plan(plan).dayOfWeek("Tuesday").focusArea("Lower").exercises("Back Squat, Romanian Deadlift, Leg Press, Walking Lunges, Leg Curl, Calf Raises").build());
             workoutPlans.add(WorkoutPlan.builder().plan(plan).dayOfWeek("Thursday").focusArea("Upper").exercises("Weighted Pull-Ups, Seated Cable Row, Dumbbell Incline Press, Lat Pulldown, Lateral Raises, Triceps Rope Pushdown").build());
             workoutPlans.add(WorkoutPlan.builder().plan(plan).dayOfWeek("Friday").focusArea("Lower").exercises("Front Squat, Hip Thrust, Bulgarian Split Squat, Romanian Deadlift, Leg Extension, Seated Calf Raise").build());
-        } else if (splitType.equals("5-Day Push/Pull/Legs")) {
+        } else if (splitType == WorkoutSplitType.PUSH_PULL_LEGS_5_DAY) {
             workoutPlans.add(WorkoutPlan.builder().plan(plan).dayOfWeek("Monday").focusArea("Push").exercises("Barbell Bench, Overhead Press, Incline DB Press, Cable Flyes, Triceps Extension").build());
             workoutPlans.add(WorkoutPlan.builder().plan(plan).dayOfWeek("Tuesday").focusArea("Pull").exercises("Chin-Ups, One-Arm Row, Lat Pulldown, Hammer Curl, Rear Delt Flyes").build());
             workoutPlans.add(WorkoutPlan.builder().plan(plan).dayOfWeek("Wednesday").focusArea("Legs").exercises("Back Squat, Leg Press, Romanian Deadlift, Walking Lunges, Leg Curl").build());

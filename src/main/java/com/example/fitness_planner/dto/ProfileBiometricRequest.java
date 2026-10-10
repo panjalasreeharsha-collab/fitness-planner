@@ -2,7 +2,9 @@ package com.example.fitness_planner.dto;
 
 import com.example.fitness_planner.entity.ActivityLevel;
 import com.example.fitness_planner.entity.Gender;
+import com.example.fitness_planner.entity.WorkoutSplitType;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.NotBlank;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -37,4 +39,10 @@ public class ProfileBiometricRequest {
 
     @NotNull(message = "Activity level is required")
     private ActivityLevel activityLevel;
+
+    @NotBlank(message = "Profession is required")
+    private String profession;
+
+    @NotNull(message = "Workout split is required")
+    private WorkoutSplitType workoutSplitType;
 }

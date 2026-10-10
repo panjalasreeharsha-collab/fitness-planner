@@ -8,6 +8,8 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.server.ResponseStatusException;
+import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -27,6 +29,10 @@ public class PlanController {
 
     @GetMapping("/plans/current")
     public ResponseEntity<FitnessPlanResponse> getCurrentPlan(@AuthenticationPrincipal User user) {
-        return ResponseEntity.ok(fitnessPlanService.getCurrentPlan(user));
+        try {
+            return ResponseEntity.ok(fitnessPlanService.getCurrentPlan(user));
+        } catch (IllegalArgumentException exception) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, exception.getMessage(), exception);
+        }
     }
 }

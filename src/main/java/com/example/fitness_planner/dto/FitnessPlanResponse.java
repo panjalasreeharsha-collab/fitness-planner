@@ -23,6 +23,7 @@ public class FitnessPlanResponse {
     private Integer carbsGrams;
     private Integer fatGrams;
     private String workoutSplitType;
+    private String profession;
     private LocalDateTime createdAt;
     private List<WorkoutPlanResponse> workoutPlans;
 }
